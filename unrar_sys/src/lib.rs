@@ -9,12 +9,12 @@ extern crate libc;
 extern crate winapi;
 
 #[cfg(feature = "std")]
-use std::os::raw::{c_int, c_uint, c_uchar, c_char};
-#[cfg(feature = "std")]
 use libc::wchar_t;
+#[cfg(feature = "std")]
+use std::os::raw::{c_char, c_int, c_uchar, c_uint};
 
 #[cfg(not(feature = "std"))]
-use libc::{c_int, c_uint, wchar_t, c_uchar, c_char};
+use libc::{c_char, c_int, c_uchar, c_uint, wchar_t};
 
 // ----------------- ENV SPECIFIC ----------------- //
 
@@ -41,8 +41,8 @@ mod env {
     pub type UINT = c_uint;
 }
 
-pub use self::env::LPARAM;
 pub use self::env::LONG;
+pub use self::env::LPARAM;
 pub use self::env::UINT;
 
 pub type WCHAR = wchar_t;
@@ -84,7 +84,7 @@ pub const RAR_HASH_BLAKE2: c_uint = 2;
 pub const RHDF_SPLITBEFORE: c_uint = 1 << 0; // 1, 0x1
 pub const RHDF_SPLITAFTER: c_uint = 1 << 1; // 2, 0x2
 pub const RHDF_ENCRYPTED: c_uint = 1 << 2; // 4, 0x4
-// pub const RHDF_RESERVED: c_uint = 1 << 3; // 8, 0x8
+                                           // pub const RHDF_RESERVED: c_uint = 1 << 3; // 8, 0x8
 pub const RHDF_SOLID: c_uint = 1 << 4; // 16, 0x10
 pub const RHDF_DIRECTORY: c_uint = 1 << 5; // 32, 0x20
 
@@ -113,7 +113,9 @@ pub type ProcessDataProc = extern "C" fn(*mut c_uchar, c_int) -> c_int;
 pub type Callback = extern "C" fn(UINT, LPARAM, LPARAM, LPARAM) -> c_int;
 
 #[repr(C)]
-pub struct HANDLE { _private: [u8; 0] }
+pub struct HANDLE {
+    _private: [u8; 0],
+}
 pub type Handle = *const HANDLE;
 
 // ----------------- STRUCTS ----------------- //
@@ -138,6 +140,7 @@ pub struct HeaderData {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct HeaderDataEx {
     pub archive_name: [c_char; 1024],
     pub archive_name_w: [wchar_t; 1024],
@@ -217,17 +220,19 @@ extern "C" {
 
     pub fn RARReadHeaderEx(handle: Handle, header_data: *mut HeaderDataEx) -> c_int;
 
-    pub fn RARProcessFile(handle: Handle,
-                          operation: c_int,
-                          dest_path: *const c_char,
-                          dest_name: *const c_char)
-                          -> c_int;
+    pub fn RARProcessFile(
+        handle: Handle,
+        operation: c_int,
+        dest_path: *const c_char,
+        dest_name: *const c_char,
+    ) -> c_int;
 
-    pub fn RARProcessFileW(handle: Handle,
-                           operation: c_int,
-                           dest_path: *const wchar_t,
-                           dest_name: *const wchar_t)
-                           -> c_int;
+    pub fn RARProcessFileW(
+        handle: Handle,
+        operation: c_int,
+        dest_path: *const wchar_t,
+        dest_name: *const wchar_t,
+    ) -> c_int;
 
     pub fn RARSetCallback(handle: Handle, callback: Callback, user_data: LPARAM);
 
@@ -309,11 +314,12 @@ impl OpenArchiveData {
         Self::with_comment_buffer(archive, mode, 0 as *mut _, 0)
     }
 
-    pub fn with_comment_buffer(archive_name: *const c_char,
-                               open_mode: c_uint,
-                               buffer: *mut c_char,
-                               buffer_size: c_uint)
-                               -> Self {
+    pub fn with_comment_buffer(
+        archive_name: *const c_char,
+        open_mode: c_uint,
+        buffer: *mut c_char,
+        buffer_size: c_uint,
+    ) -> Self {
         OpenArchiveData {
             archive_name: archive_name,
             open_mode: open_mode,

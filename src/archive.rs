@@ -2,6 +2,7 @@ use error::*;
 use native;
 use regex::Regex;
 use std::borrow::Cow;
+use std::convert::TryInto;
 use std::ffi::CString;
 use std::iter::repeat;
 use std::os::raw::{c_int, c_long, c_uint};
@@ -503,6 +504,20 @@ impl Entry {
         !self.is_directory()
     }
 
+    #[cfg(windows)]
+    extern "C" fn callback_bytes(msg: c_uint, user_data: isize, p1: isize, p2: isize) -> c_int {
+        match msg {
+            native::UCM_PROCESSDATA => {
+                let vec = unsafe { &mut *(user_data as *mut Vec<u8>) };
+                let bytes = unsafe { slice::from_raw_parts(p1 as *const _, p2 as usize) };
+                vec.extend_from_slice(bytes);
+                1
+            }
+            _ => 0,
+        }
+    }
+
+    #[cfg(not(windows))]
     extern "C" fn callback_bytes(msg: c_uint, user_data: c_long, p1: c_long, p2: c_long) -> c_int {
         match msg {
             native::UCM_PROCESSDATA => {
@@ -521,6 +536,17 @@ impl Entry {
     pub fn read_bytes(&mut self) -> Result<Vec<u8>, UnrarError<()>> {
         let mut bytes = Vec::<u8>::new();
 
+        // when on windows, else
+        #[cfg(windows)]
+        unsafe {
+            native::RARSetCallback(
+                self.archive_handle.as_ptr(),
+                Self::callback_bytes,
+                (&mut bytes as *mut _ as c_long).try_into().unwrap(),
+            )
+        }
+
+        #[cfg(not(windows))]
         unsafe {
             native::RARSetCallback(
                 self.archive_handle.as_ptr(),
